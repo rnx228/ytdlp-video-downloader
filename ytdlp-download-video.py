@@ -1,46 +1,60 @@
-import os
-import yt_dlp
 import tkinter as tk
 from tkinter import messagebox
-from pathlib import Path
+import os
+import yt_dlp
+import threading
+import sys
 
-# --- FUNCTION ---
+def paste(event=None):
+    try:
+        clipboard = root.clipboard_get()
+        url_entry.insert(tk.INSERT, clipboard)
+    except tk.TclError:
+        pass  # clipboard empty or non-text
+
+def show_context_menu(event):
+    context_menu.tk_popup(event.x_root, event.y_root)
+
 def download_video():
-    video_url = url_entry.get().strip()
-    if not video_url:
-        messagebox.showwarning("Input Error", "Please enter a Facebook video URL.")
+    url = url_entry.get().strip()
+    if not url:
+        messagebox.showwarning("Warning", "Please enter a video URL")
         return
 
-    try:
-        # Get user's Downloads folder path (Windows)
-        downloads_path = Path.home() / "Downloads"
-        downloads_path.mkdir(exist_ok=True)
+    def worker():
+        try:
+            downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
+            ydl_opts = {
+                'outtmpl': os.path.join(downloads_path, '%(title)s.%(ext)s'),
+                'format': 'best',
+                'quiet': True,
+                'no_warnings': True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            messagebox.showinfo("Success", f"Video downloaded to {downloads_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to download video:\n{e}")
 
-        ydl_opts = {
-            'outtmpl': str(downloads_path / '%(title)s.%(ext)s'),
-            'quiet': False,
-            'noplaylist': True,
-            'format': 'bestvideo+bestaudio/best',
-        }
+    # Run download in a thread to keep GUI responsive
+    threading.Thread(target=worker).start()
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
-
-        messagebox.showinfo("Success", f"Download complete!\nSaved to:\n{downloads_path}")
-
-    except Exception as e:
-        messagebox.showerror("Error", f"Download failed: {e}")
-
-# --- GUI SETUP ---
 root = tk.Tk()
 root.title("Facebook Video Downloader")
-root.geometry("400x150")
 
-tk.Label(root, text="Paste Facebook video URL:").pack(pady=(10, 5))
+tk.Label(root, text="Video URL:").pack(padx=10, pady=(10,0))
 
-url_entry = tk.Entry(root, width=50)
-url_entry.pack(padx=10)
+url_entry = tk.Entry(root, width=60)
+url_entry.pack(padx=10, pady=5)
 
-tk.Button(root, text="Download Video", command=download_video).pack(pady=15)
+# Right-click context menu
+context_menu = tk.Menu(root, tearoff=0)
+context_menu.add_command(label="Paste", command=paste)
+
+url_entry.bind("<Button-3>", show_context_menu)  # Right-click for Windows/Linux
+url_entry.bind("<Control-Button-1>", show_context_menu)  # macOS alternative
+
+download_button = tk.Button(root, text="Download", command=download_video)
+download_button.pack(padx=10, pady=10)
 
 root.mainloop()
