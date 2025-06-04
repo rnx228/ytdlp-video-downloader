@@ -23,7 +23,7 @@ def download_video():
 
     def worker():
         try:
-            downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
+            downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads/Video')
             ydl_opts = {
                 'outtmpl': os.path.join(downloads_path, '%(title)s.%(ext)s'),
                 'format': 'best',
